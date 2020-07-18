@@ -1,0 +1,72 @@
+language: node_js
+node_js:
+  - 13
+
+services:
+  - docker
+
+
+#################################################
+####                                         ####
+####      This is for udagram          CI    ####
+####                                         ####
+#################################################
+
+
+
+# Pre-testing installs
+install:
+  - echo "nothing needs to be installed"
+  - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+  - chmod +x ./kubectl
+  - sudo mv ./kubectl /usr/local/bin/kubectl
+  - mkdir ${HOME}/.kube
+  - touch ${HOME}/.kube/config
+  - echo $KUBE_CONFIG | base64 --decode > ${HOME}/.kube/config
+  - echo $AWS_PROFILE_SECRETS | base64 --decode > $AWS_CREDS
+  - curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+  - sudo mv /tmp/eksctl /usr/local/bin
+  - kubectl get pods
+
+# Scripts to be run such as tests
+before_script:
+  - echo "no tests"
+
+script:
+  # Including for testing purposes
+  - pwd
+  - ls
+
+  #This is for the feed container
+  - docker --version # prints version for logs
+  - cd ./udagram-api-feed
+  - docker build -t ug-feed .
+  - docker tag ug-feed alexm1297/ug-feed:latest
+
+  # This is for users container
+  - cd ../udagram-api-user
+  - docker build -t ug-user .
+  - docker tag ug-user alexm1297/ug-user:latest
+
+  # This is for the front end container
+  - cd ../udagram-frontend
+  - docker build -t ug-frontend .
+  - docker tag ug-frontend alexm1297/ug-frontend:latest
+
+  # This is for the reverse-proxy
+  - cd ../reverse-proxy
+  - docker build -t reverse-proxy .
+  - docker tag reverse-proxy alexm1297/reverse-proxy:latest
+
+# Tasks to perform after the process is successful.
+# Environment Vars are pulled from travis-ci.com project
+after_success:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - echo "$DOCKER_USERNAME" | docker push "$DOCKER_USERNAME"/ug-feed
+  - echo "$DOCKER_USERNAME" | docker push "$DOCKER_USERNAME"/ug-user
+  - echo "$DOCKER_USERNAME" | docker push "$DOCKER_USERNAME"/ug-frontend
+  - echo "$DOCKER_USERNAME" | docker push "$DOCKER_USERNAME"/reverse-proxy
+  - kubectl apply -f ./Kubernetes/ug-feed.yml
+  - kubectl apply -f ./Kubernetes/ug-frontend.yml
+  - kubectl apply -f ./Kubernetes/ug-proxy.yml
+  - kubectl apply -f ./Kubernetes/ug-user.yml

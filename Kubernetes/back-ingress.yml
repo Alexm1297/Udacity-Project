@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: "proxy-ingress"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+  labels:
+    app: ug-proxy
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api/v0/
+            backend:
+              serviceName: ug-proxy
+              servicePort: 80

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ug-proxy
+  labels:
+    app: ug-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ug-proxy
+  template:
+    metadata:
+      labels:
+        app: ug-proxy
+    spec:
+      containers:
+      - name: ug-proxy 
+        image: alexm1297/reverse-proxy
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "200m"
+          limits:
+            cpu: "500m"
+        livenessProbe:
+            httpGet:
+              path: /feed
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 3      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ug-proxy
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: ug-proxy
+  type: NodePort
